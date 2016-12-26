@@ -84,6 +84,7 @@ set(msg_file_names
 	qshell_req.msg
 	rc_channels.msg
 	rc_parameter_map.msg
+	rocket.msg
 	safety.msg
 	satellite_info.msg
 	sensor_accel.msg
