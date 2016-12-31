@@ -96,35 +96,45 @@ public:
 
     float estimate_apogee(float altitude, float velocity)
     {
-        float forces;
-        float sim_time = 0;
+        if (!isnan(altitude) && (!isnan(velocity))) {
+            float forces;
+            float sim_time = 0;
 
-        while (true)
-        {
-            forces = (GRAVITY * MASS);
-            forces += drag_force(_current_angle, velocity);
+            while (true)
+            {
+                forces = (GRAVITY * MASS);
+                forces += drag_force(_current_angle, velocity);
 
-            velocity += ((forces/MASS) * STEP_SIZE);
-            altitude += (velocity * STEP_SIZE);
+                velocity += ((forces/MASS) * STEP_SIZE);
+                altitude += (velocity * STEP_SIZE);
 
-            sim_time += STEP_SIZE;
+                sim_time += STEP_SIZE;
 
-            if (velocity < 0) break;
+                if (velocity < 0) break;
+            }
+
+            return altitude;
+        } else {
+            PX4_WARN("One or more sensors returned NaN");
+            return NAN;
         }
-
-        return altitude;
     }
 
     float update_brake_angle(float altitude, float velocity) {
-        _error = estimate_apogee(altitude, velocity) - _target_altitude;
-        _current_angle += _pid.update(_error);
-        if (_current_angle > (M_PI/2)) {
-            _current_angle = (M_PI/2);
+        float apogee_alt = estimate_apogee(altitude, velocity);
+        if (!isnan(apogee_alt)) {
+            _error = apogee_alt - _target_altitude;
+            _current_angle += _pid.update(_error);
+            if (_current_angle > (M_PI/2)) {
+                _current_angle = (M_PI/2);
+            }
+            else if (_current_angle < 0) {
+                _current_angle = 0;
+            }
+            return _current_angle;
+        } else {
+            return _current_angle;
         }
-        else if (_current_angle < 0) {
-            _current_angle = 0;
-        }
-        return _current_angle;
     }
 
     float _error;
