@@ -167,7 +167,7 @@ int rocket_thread_main(void)
     /* subscribe to vehicle_local_position topic */
     int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
     /* limit the update rate to 5 Hz */
-    orb_set_interval(sensor_sub_fd, 200);
+    orb_set_interval(sensor_sub_fd, 50);
 
     struct rocket_s rkt;
     memset(&rkt, 0, sizeof(rkt));
@@ -187,14 +187,14 @@ int rocket_thread_main(void)
 
     int error_counter = 0;
 
-    for (int i = 0; i < 80; i++) {
+    while(true) {
         /* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
         int poll_ret = px4_poll(fds, 1, 1000);
 
         /* handle the poll result */
         if (poll_ret == 0) {
             /* this means none of our providers is giving us data */
-            PX4_ERR("Got no data within a second");
+            PX4_WARN("Got no data within a second");
 
         } else if (poll_ret < 0) {
             /* this is seriously bad - should be an emergency */
@@ -212,8 +212,6 @@ int rocket_thread_main(void)
                 struct vehicle_local_position_s raw;
                 /* copy sensors raw data into local buffer */
                 orb_copy(ORB_ID(vehicle_local_position), sensor_sub_fd, &raw);
-                PX4_INFO("Estimated apogee: %8.4f", controller.estimate_apogee(-raw.z, -raw.vz));
-                PX4_INFO("Current altitude: %8.4f", -raw.z);
 
                 rkt.input_altitude = -raw.z;
                 rkt.input_velocity = -raw.vz;
