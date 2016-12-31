@@ -52,6 +52,7 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/rocket.h>
+#include <uORB/topics/actuator_controls.h>
 
 extern "C" __EXPORT int rocket_main(int argc, char *argv[]);
 
@@ -160,6 +161,10 @@ int rocket_main(int argc, char *argv[])
     memset(&rkt, 0, sizeof(rkt));
     orb_advert_t rkt_pub = orb_advertise(ORB_ID(rocket), &rkt);
 
+    struct actuator_controls_s _actuators_out_0;
+    memset(&_actuators_out_0, 0, sizeof(_actuators_out_0));
+    orb_advert_t _actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &_actuators_out_0);
+
     /* one could wait for multiple topics with this technique, just using one here */
     px4_pollfd_struct_t fds[] = {
         { .fd = sensor_sub_fd,   .events = POLLIN },
@@ -201,10 +206,15 @@ int rocket_main(int argc, char *argv[])
                 rkt.input_altitude = -raw.z;
                 rkt.input_velocity = -raw.vz;
                 rkt.apogee_estimate = controller.estimate_apogee(-raw.z, -raw.vz);
-                rkt.target_drag_brake_angle = controller.update_brake_angle(-raw.z, -raw.vz) * (180/M_PI);
+                float brake_angle = controller.update_brake_angle(-raw.z, -raw.vz);
+                rkt.target_drag_brake_angle = brake_angle * (180/M_PI);
                 rkt.error = controller._error;
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
+
+                _actuators_out_0.timestamp = hrt_absolute_time();
+                _actuators_out_0.control[0] = brake_angle / (M_PI/2);
+                orb_publish(ORB_ID(actuator_controls_0), _actuators_0_pub, &_actuators_out_0);
 
             }
 
