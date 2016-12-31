@@ -47,6 +47,8 @@
 #include <poll.h>
 #include <string.h>
 
+#include <px4_tasks.h>
+
 #include <drivers/drv_hrt.h>
 
 #include <uORB/uORB.h>
@@ -147,7 +149,7 @@ private:
     }
 };
 
-int rocket_main(int argc, char *argv[])
+int rocket_thread_main(void)
 {
 
     RocketController controller = RocketController(236.22);
@@ -228,4 +230,22 @@ int rocket_main(int argc, char *argv[])
     PX4_INFO("shutting down...");
 
     return 0;
+}
+
+int rocket_main(int argc, char *argv[]) {
+    int task = -1;
+
+    task = px4_task_spawn_cmd("rocket",
+                   SCHED_DEFAULT,
+                   SCHED_PRIORITY_DEFAULT,
+                   1200,
+                   (px4_main_t)rocket_thread_main,
+                   nullptr);
+
+    if (task < 0) {
+        PX4_ERR("Task start failed: %d", errno);
+        return -errno;
+    }
+
+    return OK;
 }
