@@ -58,8 +58,6 @@ land_detector start multicopter
 navigator start
 attitude_estimator_q start
 local_position_estimator start
-mc_pos_control start
-mc_att_control start
 mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/IO_pass.main.mix
 rocket start
 mavlink start -u 14556 -r 4000000
