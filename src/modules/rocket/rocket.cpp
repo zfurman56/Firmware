@@ -196,9 +196,9 @@ int rocket_thread_main(void)
     memset(&rkt, 0, sizeof(rkt));
     orb_advert_t rkt_pub = orb_advertise(ORB_ID(rocket), &rkt);
 
-    struct actuator_controls_s _actuators_out_0;
-    memset(&_actuators_out_0, 0, sizeof(_actuators_out_0));
-    orb_advert_t _actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &_actuators_out_0);
+    struct actuator_controls_s actuators_out_0;
+    memset(&actuators_out_0, 0, sizeof(actuators_out_0));
+    orb_advert_t actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &actuators_out_0);
 
     /* one could wait for multiple topics with this technique, just using one here */
     px4_pollfd_struct_t fds[1];
@@ -243,11 +243,11 @@ int rocket_thread_main(void)
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
 
-                _actuators_out_0.timestamp = hrt_absolute_time();
-                _actuators_out_0.control[0] = brake_angle / (PI/2);
-                _actuators_out_0.control[1] = brake_angle / (PI/2);
-                _actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : 0.0);
-                orb_publish(ORB_ID(actuator_controls_0), _actuators_0_pub, &_actuators_out_0);
+                actuators_out_0.timestamp = hrt_absolute_time();
+                actuators_out_0.control[0] = brake_angle / (PI/2);
+                actuators_out_0.control[1] = brake_angle / (PI/2);
+                actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : 0.0);
+                orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
 
             }
 
