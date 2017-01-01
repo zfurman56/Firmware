@@ -278,6 +278,8 @@ int rocket_thread_main(void)
 
                 _actuators_out_0.timestamp = hrt_absolute_time();
                 _actuators_out_0.control[0] = brake_angle / (M_PI/2);
+                _actuators_out_0.control[1] = brake_angle / (M_PI/2);
+                _actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : 0.0);
                 orb_publish(ORB_ID(actuator_controls_0), _actuators_0_pub, &_actuators_out_0);
 
             }
