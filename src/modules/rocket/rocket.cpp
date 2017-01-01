@@ -88,11 +88,21 @@ private:
 
 class RocketController {
 public:
-    RocketController(float target_altitude):
+    RocketController(float target_altitude, float deployment_altitude):
+        _state(PRELAUNCH),
         _target_altitude(target_altitude),
+        _deployment_altitude(deployment_altitude),
         _current_angle(0.0),
-        _pid(KP, KI, KD)
+        _pid(KP, KI, KD),
+        _counter(0)
     {}
+
+    typedef enum {
+        PRELAUNCH,
+        ASCENT,
+        DESCENT,
+        RECOVERY
+    } FlightState;
 
     float estimate_apogee(float altitude, float velocity)
     {
@@ -122,7 +132,7 @@ public:
 
     float update_brake_angle(float altitude, float velocity) {
         float apogee_alt = estimate_apogee(altitude, velocity);
-        if (!isnan(apogee_alt)) {
+        if (!isnan(apogee_alt) and (_state == ASCENT)) {
             _error = apogee_alt - _target_altitude;
             _current_angle += _pid.update(_error);
             if (_current_angle > (M_PI/2)) {
@@ -137,6 +147,46 @@ public:
         }
     }
 
+    FlightState update_state(float altitude, float velocity) {
+        if (!isnan(altitude) and !isnan(velocity)) {
+            switch(_state) {
+                case PRELAUNCH:
+                    if (velocity > 5) {
+                        _counter++;
+                    } else {
+                        _counter = 0;
+                    }
+
+                    if (_counter > 3) {
+                        _state = ASCENT;
+                        _counter = 0;
+                    }
+                    break;
+                case ASCENT:
+                    if (velocity < 0) {
+                        _counter++;
+                    } else {
+                        _counter = 0;
+                    }
+
+                    if (_counter > 3) {
+                        _state = DESCENT;
+                        _counter = 0;
+                    }
+                    break;
+                case DESCENT:
+                    if (altitude < _deployment_altitude) {
+                        _state = RECOVERY;
+                    }
+                    break;
+                case RECOVERY:
+                    break;
+            }
+        }
+        return _state;
+    }
+
+    FlightState _state;
     float _error;
 
 
@@ -151,18 +201,21 @@ private:
     static constexpr float STEP_SIZE = 0.01; // seconds
 
     float _target_altitude;
+    float _deployment_altitude;
     float _current_angle;
     Pid _pid;
+    int _counter;
 
     float drag_force(float drag_brake_angle, float velocity) {
         return DRAG_FACTOR * (1 + (DRAG_GAIN * pow(sin(drag_brake_angle), 2))) * -pow(velocity, 2);
     }
+
 };
 
 int rocket_thread_main(void)
 {
 
-    RocketController controller = RocketController(236.22);
+    RocketController controller = RocketController(236.22, 200);
 
     /* subscribe to vehicle_local_position topic */
     int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
@@ -219,6 +272,7 @@ int rocket_thread_main(void)
                 float brake_angle = controller.update_brake_angle(-raw.z, -raw.vz);
                 rkt.target_drag_brake_angle = brake_angle * (180/M_PI);
                 rkt.error = controller._error;
+                rkt.flight_state = controller.update_state(-raw.z, -raw.vz);
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
 
