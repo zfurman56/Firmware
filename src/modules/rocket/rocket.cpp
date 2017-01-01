@@ -58,6 +58,9 @@
 
 extern "C" __EXPORT int rocket_main(int argc, char *argv[]);
 
+int rocket_thread_main(void);
+constexpr float PI = (float)M_PI;
+
 class Pid {
 
 public:
@@ -135,8 +138,8 @@ public:
         if (!isnan(apogee_alt) and (_state == ASCENT)) {
             _error = apogee_alt - _target_altitude;
             _current_angle += _pid.update(_error);
-            if (_current_angle > (M_PI/2)) {
-                _current_angle = (M_PI/2);
+            if (_current_angle > (PI/2)) {
+                _current_angle = (PI/2);
             }
             else if (_current_angle < 0) {
                 _current_angle = 0;
@@ -194,7 +197,7 @@ private:
     static constexpr float KP = 0.008;
     static constexpr float KI = 0.0;
     static constexpr float KD = 0.0;
-    static constexpr float GRAVITY = -9.8; // m/s^2
+    static constexpr float GRAVITY = -9.80665; // m/s^2
     static constexpr float MASS = 0.625; // kilograms
     static constexpr float DRAG_FACTOR = 0.0011;
     static constexpr float DRAG_GAIN = 7.0;
@@ -207,7 +210,7 @@ private:
     int _counter;
 
     float drag_force(float drag_brake_angle, float velocity) {
-        return DRAG_FACTOR * (1 + (DRAG_GAIN * pow(sin(drag_brake_angle), 2))) * -pow(velocity, 2);
+        return DRAG_FACTOR * (1 + (DRAG_GAIN * powf(sin(drag_brake_angle), 2))) * -powf(velocity, 2);
     }
 
 };
@@ -231,12 +234,9 @@ int rocket_thread_main(void)
     orb_advert_t _actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &_actuators_out_0);
 
     /* one could wait for multiple topics with this technique, just using one here */
-    px4_pollfd_struct_t fds[] = {
-        { .fd = sensor_sub_fd,   .events = POLLIN },
-        /* there could be more file descriptors here, in the form like:
-         * { .fd = other_sub_fd,   .events = POLLIN },
-         */
-    };
+    px4_pollfd_struct_t fds[1];
+    fds[0].fd = sensor_sub_fd;
+    fds[0].events = POLLIN;
 
     int error_counter = 0;
 
@@ -270,15 +270,15 @@ int rocket_thread_main(void)
                 rkt.input_velocity = -raw.vz;
                 rkt.apogee_estimate = controller.estimate_apogee(-raw.z, -raw.vz);
                 float brake_angle = controller.update_brake_angle(-raw.z, -raw.vz);
-                rkt.target_drag_brake_angle = brake_angle * (180/M_PI);
+                rkt.target_drag_brake_angle = brake_angle * (180/PI);
                 rkt.error = controller._error;
                 rkt.flight_state = controller.update_state(-raw.z, -raw.vz);
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
 
                 _actuators_out_0.timestamp = hrt_absolute_time();
-                _actuators_out_0.control[0] = brake_angle / (M_PI/2);
-                _actuators_out_0.control[1] = brake_angle / (M_PI/2);
+                _actuators_out_0.control[0] = brake_angle / (PI/2);
+                _actuators_out_0.control[1] = brake_angle / (PI/2);
                 _actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : 0.0);
                 orb_publish(ORB_ID(actuator_controls_0), _actuators_0_pub, &_actuators_out_0);
 
@@ -302,7 +302,7 @@ int rocket_main(int argc, char *argv[]) {
     task = px4_task_spawn_cmd("rocket",
                    SCHED_DEFAULT,
                    SCHED_PRIORITY_DEFAULT,
-                   1200,
+                   8192,
                    (px4_main_t)rocket_thread_main,
                    nullptr);
 

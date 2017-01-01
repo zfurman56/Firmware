@@ -106,15 +106,16 @@ set(config_module_list
 	#
 	modules/fw_pos_control_l1
 	modules/fw_att_control
-	modules/mc_att_control
-	modules/mc_pos_control
+	#modules/mc_att_control
+	#modules/mc_pos_control
 	modules/vtol_att_control
+	modules/rocket
 
 	#
 	# Logging
 	#
-	#modules/logger
-	modules/sdlog2
+	modules/logger
+	#modules/sdlog2
 
 	#
 	# Library modules
