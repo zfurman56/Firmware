@@ -20,6 +20,7 @@
 
 #include <uORB/uORB.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/sensor_baro.h>
 #include <uORB/topics/rocket.h>
 #include <uORB/topics/actuator_controls.h>
 
@@ -71,7 +72,8 @@ public:
         PRELAUNCH,
         ASCENT,
         DESCENT,
-        RECOVERY
+        RECOVERY,
+        EMERGENCY_RECOVERY
     } FlightState;
 
     float estimate_apogee(float altitude, float velocity)
@@ -102,19 +104,21 @@ public:
 
     float update_brake_angle(float altitude, float velocity) {
         float apogee_alt = estimate_apogee(altitude, velocity);
-        if (!isnan(apogee_alt) and (_state == ASCENT)) {
-            _error = apogee_alt - _target_altitude;
-            _current_angle += _pid.update(_error);
-            if (_current_angle > (PI/2)) {
-                _current_angle = (PI/2);
+        if (!isnan(apogee_alt)) {
+            if (_state == ASCENT) {
+                _error = apogee_alt - _target_altitude;
+                _current_angle += _pid.update(_error);
+                if (_current_angle > (PI/2)) {
+                    _current_angle = (PI/2);
+                }
+                else if (_current_angle < 0) {
+                    _current_angle = 0;
+                }
+            } else if (_state == DESCENT) {
+                _current_angle = 0.5;
             }
-            else if (_current_angle < 0) {
-                _current_angle = 0;
-            }
-            return _current_angle;
-        } else {
-            return _current_angle;
         }
+        return _current_angle;
     }
 
     FlightState update_state(float altitude, float velocity) {
@@ -146,10 +150,17 @@ public:
                     break;
                 case DESCENT:
                     if (altitude < _deployment_altitude) {
+                        _counter++;
+                    }
+
+                    if (_counter > 4) {
                         _state = RECOVERY;
+                        _counter = 0;
                     }
                     break;
                 case RECOVERY:
+                    break;
+                case EMERGENCY_RECOVERY:
                     break;
             }
         }
@@ -186,11 +197,17 @@ int rocket_thread_main(void)
 {
 
     RocketController controller = RocketController(236.22, 200);
+    int emergency_counter = 0;
+    float prev_alt = 0.0;
+    float base_altitude = 0.0;
+    float prev_timestamp = hrt_absolute_time();
 
     /* subscribe to vehicle_local_position topic */
     int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
-    /* limit the update rate to 5 Hz */
+    int baro_sub_fd = orb_subscribe(ORB_ID(sensor_baro)); // used for emergency parachute deployment
+    /* limit the update rate to 20 Hz */
     orb_set_interval(sensor_sub_fd, 50);
+    orb_set_interval(baro_sub_fd, 50);
 
     struct rocket_s rkt;
     memset(&rkt, 0, sizeof(rkt));
@@ -201,15 +218,17 @@ int rocket_thread_main(void)
     orb_advert_t actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &actuators_out_0);
 
     /* one could wait for multiple topics with this technique, just using one here */
-    px4_pollfd_struct_t fds[1];
+    px4_pollfd_struct_t fds[2];
     fds[0].fd = sensor_sub_fd;
     fds[0].events = POLLIN;
+    fds[1].fd = baro_sub_fd;
+    fds[1].events = POLLIN;
 
     int error_counter = 0;
 
     while(true) {
-        /* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
-        int poll_ret = px4_poll(fds, 1, 1000);
+        /* wait for sensor update of 2 file descriptors for 1000 ms (1 second) */
+        int poll_ret = px4_poll(fds, 2, 1000);
 
         /* handle the poll result */
         if (poll_ret == 0) {
@@ -240,6 +259,7 @@ int rocket_thread_main(void)
                 rkt.target_drag_brake_angle = brake_angle * (180/PI);
                 rkt.error = controller._error;
                 rkt.flight_state = controller.update_state(-raw.z, -raw.vz);
+                rkt.emergency_counter = emergency_counter;
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
 
@@ -249,6 +269,39 @@ int rocket_thread_main(void)
                 actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : 0.0);
                 orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
 
+            }
+
+            if (fds[1].revents & POLLIN) {
+                struct sensor_baro_s baro;
+                orb_copy(ORB_ID(sensor_baro), baro_sub_fd, &baro);
+
+                // Set the base altitude if it's not set yet
+                if (base_altitude == 0.0) {
+                    base_altitude = baro.altitude;
+                }
+
+                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000)) > 5) && (baro.altitude < (180 + base_altitude)) && (controller._state != RocketController::RECOVERY)) {
+                    emergency_counter++;
+                } else {
+                    emergency_counter = 0;
+                }
+
+                if (emergency_counter > 4) {
+                    PX4_ERR("Emergency recovery triggered");
+                    controller._state = RocketController::EMERGENCY_RECOVERY;
+
+                    actuators_out_0.timestamp = hrt_absolute_time();
+
+                    /* Release booster pins if they haven't been released yet */
+                    actuators_out_0.control[0] = 0.5 / (PI/2);
+                    actuators_out_0.control[1] = 0.5 / (PI/2);
+
+                    /* Deploy parachute */
+                    actuators_out_0.control[2] = 1;
+                }
+
+                prev_alt = baro.altitude;
+                prev_timestamp = baro.timestamp;
             }
 
 
