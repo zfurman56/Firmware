@@ -115,7 +115,7 @@ public:
                     _current_angle = 0;
                 }
             } else if (_state == DESCENT) {
-                _current_angle = 0.5;
+                _current_angle = 0.5f;
             }
         }
         return _current_angle;
@@ -199,7 +199,7 @@ int rocket_thread_main(void)
     RocketController controller = RocketController(236.22, 200);
     int emergency_counter = 0;
     float prev_alt = 0.0;
-    float base_altitude = 0.0;
+    float base_altitude = -2000.0; // used as a dummy value to tell the program to initialize it
     float prev_timestamp = hrt_absolute_time();
 
     /* subscribe to vehicle_local_position topic */
@@ -276,7 +276,7 @@ int rocket_thread_main(void)
                 orb_copy(ORB_ID(sensor_baro), baro_sub_fd, &baro);
 
                 // Set the base altitude if it's not set yet
-                if (base_altitude == 0.0) {
+                if (base_altitude < -1000) {
                     base_altitude = baro.altitude;
                 }
 
@@ -293,8 +293,8 @@ int rocket_thread_main(void)
                     actuators_out_0.timestamp = hrt_absolute_time();
 
                     /* Release booster pins if they haven't been released yet */
-                    actuators_out_0.control[0] = 0.5 / (PI/2);
-                    actuators_out_0.control[1] = 0.5 / (PI/2);
+                    actuators_out_0.control[0] = 0.5f / (PI/2);
+                    actuators_out_0.control[1] = 0.5f / (PI/2);
 
                     /* Deploy parachute */
                     actuators_out_0.control[2] = 1;
