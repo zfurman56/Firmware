@@ -9,4 +9,4 @@
 
 sh /etc/init.d/rc.mc_defaults
 
-set MIXER IO_PASS
+set MIXER IO_pass
