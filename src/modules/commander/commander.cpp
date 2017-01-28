@@ -1991,9 +1991,9 @@ int commander_thread_main(int argc, char *argv[])
 					 * apparently the USB cable went away but we are still powered,
 					 * so lets reset to a classic non-usb state.
 					 */
-					mavlink_log_critical(&mavlink_log_pub, "USB disconnected, rebooting.")
-					usleep(400000);
-					px4_systemreset(false);
+					//mavlink_log_critical(&mavlink_log_pub, "USB disconnected, rebooting.")
+					//usleep(400000);
+					//px4_systemreset(false);
 				}
 
 				/* finally judge the USB connected state based on software detection */
