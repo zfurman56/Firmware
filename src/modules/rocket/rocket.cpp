@@ -23,6 +23,7 @@
 #include <uORB/topics/sensor_baro.h>
 #include <uORB/topics/rocket.h>
 #include <uORB/topics/actuator_controls.h>
+#include <uORB/topics/actuator_armed.h>
 
 extern "C" __EXPORT int rocket_main(int argc, char *argv[]);
 
@@ -267,6 +268,7 @@ int rocket_thread_main(void)
                 actuators_out_0.control[0] = ((brake_angle / (PI/2)) * 2) - 1;
                 actuators_out_0.control[1] = ((brake_angle / (PI/2)) * 2) - 1;
                 actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : -1.0);
+                actuators_out_0.control[3] = ((controller._state == RocketController::PRELAUNCH) ? -1.0 : 1.0);
                 orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
 
             }
