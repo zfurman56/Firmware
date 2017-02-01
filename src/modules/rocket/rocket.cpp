@@ -194,6 +194,11 @@ private:
 
 };
 
+// Takes angle in radians and converts to servo command (-1 to 1)
+float angle_to_command(float angle) {
+    return (((angle / (PI/2)) * 2) - 1);
+}
+
 int rocket_thread_main(void)
 {
 
@@ -265,8 +270,8 @@ int rocket_thread_main(void)
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
 
                 actuators_out_0.timestamp = hrt_absolute_time();
-                actuators_out_0.control[0] = ((brake_angle / (PI/2)) * 2) - 1;
-                actuators_out_0.control[1] = ((brake_angle / (PI/2)) * 2) - 1;
+                actuators_out_0.control[0] = angle_to_command(brake_angle);
+                actuators_out_0.control[1] = angle_to_command(brake_angle);
                 actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : -1.0);
                 actuators_out_0.control[3] = ((controller._state == RocketController::PRELAUNCH) ? -1.0 : 1.0);
                 orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
@@ -295,8 +300,8 @@ int rocket_thread_main(void)
                     actuators_out_0.timestamp = hrt_absolute_time();
 
                     /* Release booster pins if they haven't been released yet */
-                    actuators_out_0.control[0] = 0.5f / (PI/2);
-                    actuators_out_0.control[1] = 0.5f / (PI/2);
+                    actuators_out_0.control[0] = angle_to_command(0.5f);
+                    actuators_out_0.control[1] = angle_to_command(0.5f);
 
                     /* Deploy parachute */
                     actuators_out_0.control[2] = 1;
