@@ -206,7 +206,7 @@ int rocket_thread_main(void)
     int emergency_counter = 0;
     float prev_alt = 0.0;
     float base_altitude = -2000.0; // used as a dummy value to tell the program to initialize it
-    float prev_timestamp = hrt_absolute_time();
+    hrt_abstime prev_timestamp = hrt_absolute_time();
 
     /* subscribe to vehicle_local_position topic */
     int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
