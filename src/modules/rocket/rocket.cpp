@@ -272,7 +272,7 @@ int rocket_thread_main(void)
                 actuators_out_0.timestamp = hrt_absolute_time();
                 actuators_out_0.control[0] = angle_to_command(brake_angle);
                 actuators_out_0.control[1] = angle_to_command(brake_angle);
-                actuators_out_0.control[2] = ((controller._state == RocketController::RECOVERY) ? 1.0 : -1.0);
+                actuators_out_0.control[2] = (((controller._state == RocketController::RECOVERY) || (controller._state == RocketController::EMERGENCY_RECOVERY)) ? 1.0 : -1.0);
                 actuators_out_0.control[3] = ((controller._state == RocketController::PRELAUNCH) ? -1.0 : 1.0);
                 orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
 
