@@ -23,7 +23,7 @@
 #include <uORB/topics/sensor_baro.h>
 #include <uORB/topics/rocket.h>
 #include <uORB/topics/actuator_controls.h>
-#include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/vehicle_status.h>
 
 extern "C" __EXPORT int rocket_main(int argc, char *argv[]);
 
@@ -61,15 +61,18 @@ private:
 class RocketController {
 public:
     RocketController(float target_altitude, float deployment_altitude):
-        _state(PRELAUNCH),
+        _state(TESTING),
+        _armed(false),
         _target_altitude(target_altitude),
         _deployment_altitude(deployment_altitude),
+        _testing_angle(0.0),
         _current_angle(0.0),
         _pid(KP, KI, KD),
         _counter(0)
     {}
 
     typedef enum {
+        TESTING,
         PRELAUNCH,
         ASCENT,
         DESCENT,
@@ -125,6 +128,21 @@ public:
     FlightState update_state(float altitude, float velocity) {
         if (!isnan(altitude) and !isnan(velocity)) {
             switch(_state) {
+                case TESTING:
+                    if (_armed) {
+                        _testing_angle += 0.05f;
+                        if (_testing_angle > (PI/2)) {
+                            _testing_angle = 0.0;
+                        }
+                        if (time_since_armed() > 5000000) {
+                            _testing_angle = 0.0;
+                        }
+                        // give time for drag brakes to get back to zero degrees
+                        if (time_since_armed() > 5500000) {
+                            _state = PRELAUNCH;
+                        }
+                    }
+                    break;
                 case PRELAUNCH:
                     if (velocity > 5) {
                         _counter++;
@@ -176,6 +194,11 @@ public:
         actuators_out_0.control[1] = angle_to_command(0.0f);
         actuators_out_0.control[2] = -1.0;
 
+        if(_state == TESTING) {
+            actuators_out_0.control[0] = angle_to_command(_testing_angle);
+            actuators_out_0.control[1] = angle_to_command(_testing_angle);
+        }
+
         if (_state == PRELAUNCH) {
             actuators_out_0.control[3] = -1.0;
         } else {
@@ -203,6 +226,8 @@ public:
 
     FlightState _state;
     float _error;
+    bool _armed;
+    hrt_abstime _armed_time;
 
 
 private:
@@ -217,12 +242,17 @@ private:
 
     float _target_altitude;
     float _deployment_altitude;
+    float _testing_angle;
     float _current_angle;
     Pid _pid;
     int _counter;
 
     float drag_force(float drag_brake_angle, float velocity) {
         return DRAG_FACTOR * (1 + (DRAG_GAIN * powf(sin(drag_brake_angle), 2))) * -powf(velocity, 2);
+    }
+
+    hrt_abstime time_since_armed() {
+        return (hrt_absolute_time() - _armed_time);
     }
 
     // Takes angle in radians and converts to servo command (-1 to 1)
@@ -245,9 +275,11 @@ int rocket_thread_main(void)
     /* subscribe to vehicle_local_position topic */
     int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
     int baro_sub_fd = orb_subscribe(ORB_ID(sensor_baro)); // used for emergency parachute deployment
+    int status_sub_fd = orb_subscribe(ORB_ID(vehicle_status));
     /* limit the update rate to 20 Hz */
     orb_set_interval(sensor_sub_fd, 50);
     orb_set_interval(baro_sub_fd, 50);
+    orb_set_interval(status_sub_fd, 50);
 
     struct rocket_s rkt;
     memset(&rkt, 0, sizeof(rkt));
@@ -258,17 +290,19 @@ int rocket_thread_main(void)
     orb_advert_t actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &actuators_out_0);
 
     /* one could wait for multiple topics with this technique, just using one here */
-    px4_pollfd_struct_t fds[2];
+    px4_pollfd_struct_t fds[3];
     fds[0].fd = sensor_sub_fd;
     fds[0].events = POLLIN;
     fds[1].fd = baro_sub_fd;
     fds[1].events = POLLIN;
+    fds[2].fd = status_sub_fd;
+    fds[2].events = POLLIN;
 
     int error_counter = 0;
 
     while(true) {
-        /* wait for sensor update of 2 file descriptors for 1000 ms (1 second) */
-        int poll_ret = px4_poll(fds, 2, 1000);
+        /* wait for sensor update of 3 file descriptors for 1000 ms (1 second) */
+        int poll_ret = px4_poll(fds, 3, 1000);
 
         /* handle the poll result */
         if (poll_ret == 0) {
@@ -327,6 +361,19 @@ int rocket_thread_main(void)
 
                 prev_alt = baro.altitude;
                 prev_timestamp = baro.timestamp;
+            }
+
+            if (fds[2].revents & POLLIN) {
+                struct vehicle_status_s status;
+                orb_copy(ORB_ID(vehicle_status), status_sub_fd, &status);
+                if (!controller._armed) {
+                    controller._armed_time = hrt_absolute_time();
+                }
+                if (status.arming_state == 2) {
+                    controller._armed = true;
+                } else {
+                    controller._armed = false;
+                }
             }
 
             controller.actuate(actuators_0_pub);
