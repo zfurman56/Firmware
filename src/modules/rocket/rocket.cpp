@@ -168,6 +168,39 @@ public:
         return _state;
     }
 
+    void actuate(orb_advert_t actuators_0_pub) {
+        struct actuator_controls_s actuators_out_0;
+
+        actuators_out_0.timestamp = hrt_absolute_time();
+        actuators_out_0.control[0] = angle_to_command(0.0f);
+        actuators_out_0.control[1] = angle_to_command(0.0f);
+        actuators_out_0.control[2] = -1.0;
+
+        if (_state == PRELAUNCH) {
+            actuators_out_0.control[3] = -1.0;
+        } else {
+            actuators_out_0.control[3] = 1.0;
+        }
+
+        if (_state == ASCENT) {
+            actuators_out_0.control[0] = angle_to_command(_current_angle);
+            actuators_out_0.control[1] = angle_to_command(_current_angle);
+        }
+
+        if (_state == DESCENT) {
+            actuators_out_0.control[0] = angle_to_command(1.0f);
+            actuators_out_0.control[1] = angle_to_command(1.0f);
+        }
+
+        if ((_state == RECOVERY) || (_state == EMERGENCY_RECOVERY)) {
+            actuators_out_0.control[0] = angle_to_command(1.0f);
+            actuators_out_0.control[1] = angle_to_command(1.0f);
+            actuators_out_0.control[2] = 1.0;
+        }
+
+        orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
+    }
+
     FlightState _state;
     float _error;
 
@@ -269,13 +302,6 @@ int rocket_thread_main(void)
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
 
-                actuators_out_0.timestamp = hrt_absolute_time();
-                actuators_out_0.control[0] = angle_to_command(brake_angle);
-                actuators_out_0.control[1] = angle_to_command(brake_angle);
-                actuators_out_0.control[2] = (((controller._state == RocketController::RECOVERY) || (controller._state == RocketController::EMERGENCY_RECOVERY)) ? 1.0 : -1.0);
-                actuators_out_0.control[3] = ((controller._state == RocketController::PRELAUNCH) ? -1.0 : 1.0);
-                orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
-
             }
 
             if (fds[1].revents & POLLIN) {
@@ -296,23 +322,13 @@ int rocket_thread_main(void)
                 if (emergency_counter > 4) {
                     PX4_ERR("Emergency recovery triggered");
                     controller._state = RocketController::EMERGENCY_RECOVERY;
-
-                    actuators_out_0.timestamp = hrt_absolute_time();
-
-                    /* Release booster pins if they haven't been released yet */
-                    actuators_out_0.control[0] = angle_to_command(0.5f);
-                    actuators_out_0.control[1] = angle_to_command(0.5f);
-
-                    /* Deploy parachute */
-                    actuators_out_0.control[2] = 1;
-
-                    orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
                 }
 
                 prev_alt = baro.altitude;
                 prev_timestamp = baro.timestamp;
             }
 
+            controller.actuate(actuators_0_pub);
 
             /* there could be more file descriptors here, in the form like:
              * if (fds[1..n].revents & POLLIN) {}
