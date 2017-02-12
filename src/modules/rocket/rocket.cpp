@@ -225,12 +225,13 @@ private:
         return DRAG_FACTOR * (1 + (DRAG_GAIN * powf(sin(drag_brake_angle), 2))) * -powf(velocity, 2);
     }
 
+    // Takes angle in radians and converts to servo command (-1 to 1)
+    float angle_to_command(float angle) {
+        return (((angle / (PI/2)) * 2) - 1);
+    }
+
 };
 
-// Takes angle in radians and converts to servo command (-1 to 1)
-float angle_to_command(float angle) {
-    return (((angle / (PI/2)) * 2) - 1);
-}
 
 int rocket_thread_main(void)
 {
