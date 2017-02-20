@@ -262,11 +262,11 @@ int rocket_thread_main(void)
     hrt_abstime prev_timestamp = hrt_absolute_time();
 
     /* subscribe to vehicle_local_position topic */
-    int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
+    int estimator_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
     int baro_sub_fd = orb_subscribe(ORB_ID(sensor_baro)); // used for emergency parachute deployment
     int status_sub_fd = orb_subscribe(ORB_ID(vehicle_status));
     /* limit the update rate to 20 Hz */
-    orb_set_interval(sensor_sub_fd, 50);
+    orb_set_interval(estimator_sub_fd, 50);
     orb_set_interval(baro_sub_fd, 50);
     orb_set_interval(status_sub_fd, 50);
 
@@ -280,7 +280,7 @@ int rocket_thread_main(void)
 
     /* one could wait for multiple topics with this technique, just using one here */
     px4_pollfd_struct_t fds[3];
-    fds[0].fd = sensor_sub_fd;
+    fds[0].fd = estimator_sub_fd;
     fds[0].events = POLLIN;
     fds[1].fd = baro_sub_fd;
     fds[1].events = POLLIN;
@@ -313,7 +313,7 @@ int rocket_thread_main(void)
                 /* obtained data for the first file descriptor */
                 struct vehicle_local_position_s raw;
                 /* copy sensors raw data into local buffer */
-                orb_copy(ORB_ID(vehicle_local_position), sensor_sub_fd, &raw);
+                orb_copy(ORB_ID(vehicle_local_position), estimator_sub_fd, &raw);
 
                 rkt.input_altitude = -raw.z;
                 rkt.input_velocity = -raw.vz;
