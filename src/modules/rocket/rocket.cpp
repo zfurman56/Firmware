@@ -109,17 +109,13 @@ public:
     float update_brake_angle(float altitude, float velocity) {
         float apogee_alt = estimate_apogee(altitude, velocity);
         if (!isnan(apogee_alt)) {
-            if (_state == ASCENT) {
-                _error = apogee_alt - _target_altitude;
-                _current_angle += _pid.update(_error);
-                if (_current_angle > (PI/2)) {
-                    _current_angle = (PI/2);
-                }
-                else if (_current_angle < 0) {
-                    _current_angle = 0;
-                }
-            } else if (_state == DESCENT) {
-                _current_angle = 0.5f;
+            _error = apogee_alt - _target_altitude;
+            _current_angle += _pid.update(_error);
+            if (_current_angle > (PI/2)) {
+                _current_angle = (PI/2);
+            }
+            else if (_current_angle < 0) {
+                _current_angle = 0;
             }
         }
         return _current_angle;
@@ -210,14 +206,7 @@ public:
             actuators_out_0.control[1] = angle_to_command(_current_angle);
         }
 
-        if (_state == DESCENT) {
-            actuators_out_0.control[0] = angle_to_command(1.0f);
-            actuators_out_0.control[1] = angle_to_command(1.0f);
-        }
-
         if ((_state == RECOVERY) || (_state == EMERGENCY_RECOVERY)) {
-            actuators_out_0.control[0] = angle_to_command(1.0f);
-            actuators_out_0.control[1] = angle_to_command(1.0f);
             actuators_out_0.control[2] = 1.0;
         }
 
