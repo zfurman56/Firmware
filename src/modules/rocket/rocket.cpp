@@ -24,11 +24,16 @@
 #include <uORB/topics/rocket.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/sensor_combined.h>
 
 extern "C" __EXPORT int rocket_main(int argc, char *argv[]);
 
 int rocket_thread_main(void);
 constexpr float PI = (float)M_PI;
+
+static float acceleration = 0.0;
+static constexpr float MASS = 0.625; // kilograms
+static constexpr float AIR_DENSITY = 1.225; // kg / m^3
 
 class Pid {
 
@@ -224,7 +229,6 @@ private:
     static constexpr float KI = 0.0;
     static constexpr float KD = 0.0;
     static constexpr float GRAVITY = -9.80665; // m/s^2
-    static constexpr float MASS = 0.625; // kilograms
     static constexpr float DRAG_FACTOR = 0.0011;
     static constexpr float DRAG_GAIN = 7.0;
     static constexpr float STEP_SIZE = 0.01; // seconds
@@ -265,10 +269,12 @@ int rocket_thread_main(void)
     int estimator_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
     int baro_sub_fd = orb_subscribe(ORB_ID(sensor_baro)); // used for emergency parachute deployment
     int status_sub_fd = orb_subscribe(ORB_ID(vehicle_status));
+    int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
     /* limit the update rate to 20 Hz */
     orb_set_interval(estimator_sub_fd, 50);
     orb_set_interval(baro_sub_fd, 50);
     orb_set_interval(status_sub_fd, 50);
+    orb_set_interval(sensor_sub_fd, 50);
 
     struct rocket_s rkt;
     memset(&rkt, 0, sizeof(rkt));
@@ -279,19 +285,21 @@ int rocket_thread_main(void)
     orb_advert_t actuators_0_pub = orb_advertise(ORB_ID(actuator_controls_0), &actuators_out_0);
 
     /* one could wait for multiple topics with this technique, just using one here */
-    px4_pollfd_struct_t fds[3];
+    px4_pollfd_struct_t fds[4];
     fds[0].fd = estimator_sub_fd;
     fds[0].events = POLLIN;
     fds[1].fd = baro_sub_fd;
     fds[1].events = POLLIN;
     fds[2].fd = status_sub_fd;
     fds[2].events = POLLIN;
+    fds[3].fd = sensor_sub_fd;
+    fds[3].events = POLLIN;
 
     int error_counter = 0;
 
     while(true) {
-        /* wait for sensor update of 3 file descriptors for 1000 ms (1 second) */
-        int poll_ret = px4_poll(fds, 3, 1000);
+        /* wait for sensor update of 4 file descriptors for 1000 ms (1 second) */
+        int poll_ret = px4_poll(fds, 4, 1000);
 
         /* handle the poll result */
         if (poll_ret == 0) {
@@ -317,6 +325,8 @@ int rocket_thread_main(void)
 
                 rkt.input_altitude = -raw.z;
                 rkt.input_velocity = -raw.vz;
+                float speed = sqrtf(powf(raw.vx, 2) + powf(raw.vy, 2) + powf(raw.vz, 2));
+                rkt.estimated_cda = ((acceleration * MASS) / (powf(speed, 2) * AIR_DENSITY * 0.5)) * 10000;
                 rkt.apogee_estimate = controller.estimate_apogee(-raw.z, -raw.vz);
                 float brake_angle = controller.update_brake_angle(-raw.z, -raw.vz);
                 rkt.target_drag_brake_angle = brake_angle * (180/PI);
@@ -363,6 +373,12 @@ int rocket_thread_main(void)
                 } else {
                     controller._armed = false;
                 }
+            }
+
+            if (fds[3].revents & POLLIN) {
+                struct sensor_combined_s sensors;
+                orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &sensors);
+                acceleration = sqrtf(powf(sensors.accelerometer_m_s2[0], 2) + powf(sensors.accelerometer_m_s2[1], 2) + powf(sensors.accelerometer_m_s2[2], 2));
             }
 
             controller.actuate(actuators_0_pub);
