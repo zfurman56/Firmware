@@ -72,6 +72,8 @@ public:
         _deployment_altitude(deployment_altitude),
         _testing_angle(0.0),
         _current_angle(0.0),
+        _cda_testing_angle(0.0),
+        _prev_velocity(0.0),
         _pid(KP, KI, KD),
         _counter(0)
     {}
@@ -79,6 +81,7 @@ public:
     typedef enum {
         TESTING,
         PRELAUNCH,
+        BOOST,
         ASCENT,
         DESCENT,
         RECOVERY,
@@ -152,11 +155,30 @@ public:
                     }
 
                     if (_counter > 3) {
+                        _state = BOOST;
+                        _counter = 0;
+                    }
+                    break;
+                case BOOST:
+                    if ((_prev_velocity-velocity) > 0) {
+                        _counter++;
+                    } else {
+                        _counter = 0;
+                    }
+
+                    if (_counter > 3) {
                         _state = ASCENT;
+                        _coast_time = hrt_absolute_time();
                         _counter = 0;
                     }
                     break;
                 case ASCENT:
+                    if ((hrt_absolute_time() - _coast_time) < 1000000) {
+                        _cda_testing_angle = (ANGLE1*(PI/180));
+                    } else {
+                        _cda_testing_angle = (ANGLE2*(PI/180));
+                    }
+
                     if (velocity < 0) {
                         _counter++;
                     } else {
@@ -183,6 +205,7 @@ public:
                 case EMERGENCY_RECOVERY:
                     break;
             }
+            _prev_velocity = velocity;
         }
         return _state;
     }
@@ -207,8 +230,13 @@ public:
         }
 
         if (_state == ASCENT) {
-            actuators_out_0.control[0] = angle_to_command(_current_angle);
-            actuators_out_0.control[1] = angle_to_command(_current_angle);
+            if (CDA_TESTING) {
+                actuators_out_0.control[0] = angle_to_command(_cda_testing_angle);
+                actuators_out_0.control[1] = angle_to_command(_cda_testing_angle);
+            } else {
+                actuators_out_0.control[0] = angle_to_command(_current_angle);
+                actuators_out_0.control[1] = angle_to_command(_current_angle);
+            }
         }
 
         if ((_state == RECOVERY) || (_state == EMERGENCY_RECOVERY)) {
@@ -232,13 +260,19 @@ private:
     static constexpr float DRAG_FACTOR = 0.0011;
     static constexpr float DRAG_GAIN = 7.0;
     static constexpr float STEP_SIZE = 0.01; // seconds
+    static constexpr bool CDA_TESTING = true;
+    static constexpr float ANGLE1 = 45; // degrees
+    static constexpr float ANGLE2 = 90; // degrees
 
     float _target_altitude;
     float _deployment_altitude;
     float _testing_angle;
     float _current_angle;
+    float _cda_testing_angle;
+    float _prev_velocity;
     Pid _pid;
     int _counter;
+    hrt_abstime _coast_time;
 
     float drag_force(float drag_brake_angle, float velocity) {
         return DRAG_FACTOR * (1 + (DRAG_GAIN * powf(sin(drag_brake_angle), 2))) * -powf(velocity, 2);
