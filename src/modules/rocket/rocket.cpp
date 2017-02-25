@@ -257,12 +257,11 @@ private:
     static constexpr float KI = 0.0;
     static constexpr float KD = 0.0;
     static constexpr float GRAVITY = -9.80665; // m/s^2
-    static constexpr float DRAG_FACTOR = 0.0011;
-    static constexpr float DRAG_GAIN = 7.0;
     static constexpr float STEP_SIZE = 0.01; // seconds
-    static constexpr bool CDA_TESTING = true;
+    static constexpr bool CDA_TESTING = false;
     static constexpr float ANGLE1 = 45; // degrees
     static constexpr float ANGLE2 = 90; // degrees
+    const float COEFS[4] = {-0.007123, 0.01678, -0.0007906, 0.001801}; // used to calculate CdA from brake angle
 
     float _target_altitude;
     float _deployment_altitude;
@@ -275,7 +274,11 @@ private:
     hrt_abstime _coast_time;
 
     float drag_force(float drag_brake_angle, float velocity) {
-        return DRAG_FACTOR * (1 + (DRAG_GAIN * powf(sin(drag_brake_angle), 2))) * -powf(velocity, 2);
+        return estimate_cda(drag_brake_angle) * AIR_DENSITY * 0.5f * -powf(velocity, 2);
+    }
+
+    float estimate_cda(float angle) {
+        return (COEFS[3] + (COEFS[2]*angle) + (COEFS[1]*powf(angle, 2)) + (COEFS[0]*powf(angle, 3)));
     }
 
     hrt_abstime time_since_armed() {
