@@ -360,7 +360,7 @@ int rocket_thread_main(void)
                 rkt.input_altitude = -raw.z;
                 rkt.input_velocity = -raw.vz;
                 float speed = sqrtf(powf(raw.vx, 2) + powf(raw.vy, 2) + powf(raw.vz, 2));
-                float estimated_cda = ((acceleration * MASS) / (powf(speed, 2) * AIR_DENSITY * 0.5)) * 10000;
+                float estimated_cda = ((acceleration * MASS) / (powf(speed, 2) * AIR_DENSITY * 0.5f)) * 10000;
                 rkt.estimated_cda = ((estimated_cda > 1000) ? 1000 : estimated_cda); // Cap CdA measurements at 1000
                 rkt.apogee_estimate = controller.estimate_apogee(-raw.z, -raw.vz);
                 float brake_angle = controller.update_brake_angle(-raw.z, -raw.vz);
