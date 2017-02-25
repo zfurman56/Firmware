@@ -254,7 +254,7 @@ public:
 
 
 private:
-    static constexpr float KP = 0.0;
+    static constexpr float KP = 0.008;
     static constexpr float KI = 0.0;
     static constexpr float KD = 0.0;
     static constexpr float GRAVITY = -9.80665; // m/s^2
