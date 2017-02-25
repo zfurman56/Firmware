@@ -70,7 +70,7 @@ public:
         _armed(false),
         _target_altitude(target_altitude),
         _deployment_altitude(deployment_altitude),
-        _max_deployment_velocity(10.0),
+        _trigger_deployment_velocity(10.0),
         _testing_angle(0.0),
         _current_angle(0.0),
         _cda_testing_angle(0.0),
@@ -192,7 +192,7 @@ public:
                     }
                     break;
                 case DESCENT:
-                    if ((altitude < _deployment_altitude) || (velocity > _max_deployment_velocity)) {
+                    if ((altitude < _deployment_altitude) || (velocity > _trigger_deployment_velocity)) {
                         _counter++;
                     }
 
@@ -266,7 +266,7 @@ private:
 
     float _target_altitude;
     float _deployment_altitude;
-    float _max_deployment_velocity;
+    float _trigger_deployment_velocity;
     float _testing_angle;
     float _current_angle;
     float _cda_testing_angle;
