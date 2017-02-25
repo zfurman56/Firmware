@@ -224,7 +224,7 @@ public:
             actuators_out_0.control[1] = angle_to_command(_testing_angle);
         }
 
-        if (_state == PRELAUNCH) {
+        if ((_state == PRELAUNCH) || (_state == RECOVERY)) {
             actuators_out_0.control[3] = -1.0;
         } else {
             actuators_out_0.control[3] = 1.0;
