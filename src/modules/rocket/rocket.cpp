@@ -174,10 +174,12 @@ public:
                     }
                     break;
                 case ASCENT:
-                    if ((hrt_absolute_time() - _coast_time) < 1000000) {
-                        _cda_testing_angle = (ANGLE1*(PI/180));
+                    if ((hrt_absolute_time() - _coast_time) < 700000) {
+                        _cda_testing_angle = (ANGLES[0]*(PI/180));
+                    } else if ((hrt_absolute_time() - _coast_time) < 1400000) {
+                        _cda_testing_angle = (ANGLES[1]*(PI/180));
                     } else {
-                        _cda_testing_angle = (ANGLE2*(PI/180));
+                        _cda_testing_angle = (ANGLES[2]*(PI/180));
                     }
 
                     if (velocity < 0) {
@@ -262,9 +264,8 @@ private:
     static constexpr float GRAVITY = -9.80665; // m/s^2
     static constexpr float STEP_SIZE = 0.01; // seconds
     static constexpr bool CDA_TESTING = false;
-    static constexpr float ANGLE1 = 45; // degrees
-    static constexpr float ANGLE2 = 90; // degrees
     static constexpr bool DRAG_BRAKES_ENABLED = true;
+    const int ANGLES[3] = {30, 60, 90}; // degrees, used for CdA testing
     const float COEFS[4] = {-0.007123, 0.01678, -0.0007906, 0.001801}; // used to calculate CdA from brake angle
 
     float _target_altitude;
