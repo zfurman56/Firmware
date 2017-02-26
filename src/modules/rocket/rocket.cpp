@@ -231,12 +231,14 @@ public:
         }
 
         if (_state == ASCENT) {
-            if (CDA_TESTING) {
-                actuators_out_0.control[0] = angle_to_command(_cda_testing_angle);
-                actuators_out_0.control[1] = angle_to_command(_cda_testing_angle);
-            } else {
-                actuators_out_0.control[0] = angle_to_command(_current_angle);
-                actuators_out_0.control[1] = angle_to_command(_current_angle);
+            if (DRAG_BRAKES_ENABLED) {
+                if (CDA_TESTING) {
+                    actuators_out_0.control[0] = angle_to_command(_cda_testing_angle);
+                    actuators_out_0.control[1] = angle_to_command(_cda_testing_angle);
+                } else {
+                    actuators_out_0.control[0] = angle_to_command(_current_angle);
+                    actuators_out_0.control[1] = angle_to_command(_current_angle);
+                }
             }
         }
 
@@ -262,6 +264,7 @@ private:
     static constexpr bool CDA_TESTING = false;
     static constexpr float ANGLE1 = 45; // degrees
     static constexpr float ANGLE2 = 90; // degrees
+    static constexpr bool DRAG_BRAKES_ENABLED = true;
     const float COEFS[4] = {-0.007123, 0.01678, -0.0007906, 0.001801}; // used to calculate CdA from brake angle
 
     float _target_altitude;
