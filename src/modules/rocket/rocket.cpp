@@ -260,7 +260,7 @@ private:
     static constexpr float DRAG_FACTOR = 0.0011;
     static constexpr float DRAG_GAIN = 7.0;
     static constexpr float STEP_SIZE = 0.01; // seconds
-    static constexpr bool CDA_TESTING = true;
+    static constexpr bool CDA_TESTING = false;
     static constexpr float ANGLE1 = 45; // degrees
     static constexpr float ANGLE2 = 90; // degrees
 
