@@ -209,6 +209,7 @@ public:
         if(_state == TESTING) {
             actuators_out_0.control[0] = angle_to_command(_testing_angle);
             actuators_out_0.control[1] = angle_to_command(_testing_angle);
+            actuators_out_0.control[2] = angle_to_command(_testing_angle);
         }
 
         if ((_state == PRELAUNCH) || (_state == RECOVERY)) {
