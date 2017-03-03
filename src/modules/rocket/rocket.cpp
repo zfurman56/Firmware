@@ -92,23 +92,8 @@ public:
     float estimate_apogee(float altitude, float velocity)
     {
         if (!isnan(altitude) && (!isnan(velocity))) {
-            float forces;
-            float sim_time = 0;
-
-            while (true)
-            {
-                forces = (GRAVITY * MASS);
-                forces += drag_force(_current_angle, velocity);
-
-                velocity += ((forces/MASS) * STEP_SIZE);
-                altitude += (velocity * STEP_SIZE);
-
-                sim_time += STEP_SIZE;
-
-                if (velocity < 0) break;
-            }
-
-            return altitude;
+            float term_vel_sqrd = (2 * MASS * GRAVITY) / (estimate_cda(_current_angle) * AIR_DENSITY); // terminal velocity squared
+            return altitude + ((term_vel_sqrd / (2 * GRAVITY)) * logf((powf(velocity, 2) + term_vel_sqrd) / term_vel_sqrd));
         } else {
             PX4_WARN("One or more sensors returned NaN");
             return NAN;
@@ -261,8 +246,7 @@ private:
     static constexpr float KP = 0.008;
     static constexpr float KI = 0.0;
     static constexpr float KD = 0.0;
-    static constexpr float GRAVITY = -9.80665; // m/s^2
-    static constexpr float STEP_SIZE = 0.01; // seconds
+    static constexpr float GRAVITY = 9.80665; // m/s^2
     static constexpr bool CDA_TESTING = false;
     static constexpr bool DRAG_BRAKES_ENABLED = true;
     const int ANGLES[3] = {30, 60, 90}; // degrees, used for CdA testing
@@ -278,10 +262,6 @@ private:
     Pid _pid;
     int _counter;
     hrt_abstime _coast_time;
-
-    float drag_force(float drag_brake_angle, float velocity) {
-        return estimate_cda(drag_brake_angle) * AIR_DENSITY * 0.5f * -powf(velocity, 2);
-    }
 
     float estimate_cda(float angle) {
         return (COEFS[3] + (COEFS[2]*angle) + (COEFS[1]*powf(angle, 2)) + (COEFS[0]*powf(angle, 3)));
