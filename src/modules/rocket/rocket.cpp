@@ -371,7 +371,7 @@ int rocket_thread_main(void)
                     base_altitude = baro.altitude;
                 }
 
-                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000)) > 5) && (baro.altitude < (180 + base_altitude)) && (controller._state != RocketController::RECOVERY)) {
+                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 15) && (controller._state != RocketController::RECOVERY)) {
                     emergency_counter++;
                 } else {
                     emergency_counter = 0;
