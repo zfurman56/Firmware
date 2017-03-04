@@ -213,9 +213,9 @@ public:
         }
 
         if ((_state == PRELAUNCH) || (_state == RECOVERY)) {
-            actuators_out_0.control[3] = 1.0;
-        } else {
             actuators_out_0.control[3] = -1.0;
+        } else {
+            actuators_out_0.control[3] = 1.0;
         }
 
         if (_state == ASCENT) {
