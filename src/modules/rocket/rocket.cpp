@@ -251,7 +251,7 @@ private:
     static constexpr bool CDA_TESTING = false;
     static constexpr bool DRAG_BRAKES_ENABLED = true;
     const int ANGLES[3] = {30, 60, 90}; // degrees, used for CdA testing
-    const float COEFS[4] = {-0.007123, 0.01678, -0.0007906, 0.001801}; // used to calculate CdA from brake angle
+    const float COEFS[4] = {-0.008160, 0.01923, -0.0009078, 0.003426}; // used to calculate CdA from brake angle
 
     float _target_altitude;
     float _deployment_altitude;
