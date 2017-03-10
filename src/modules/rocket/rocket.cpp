@@ -286,7 +286,6 @@ int rocket_thread_main(void)
     RocketController controller = RocketController(236.22, 200);
     int emergency_counter = 0;
     float prev_alt = 0.0;
-    float base_altitude = -2000.0; // used as a dummy value to tell the program to initialize it
     hrt_abstime prev_timestamp = hrt_absolute_time();
 
     /* subscribe to vehicle_local_position topic */
@@ -366,11 +365,6 @@ int rocket_thread_main(void)
             if (fds[1].revents & POLLIN) {
                 struct sensor_baro_s baro;
                 orb_copy(ORB_ID(sensor_baro), baro_sub_fd, &baro);
-
-                // Set the base altitude if it's not set yet
-                if (base_altitude < -1000) {
-                    base_altitude = baro.altitude;
-                }
 
                 if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 15) && (controller._state != RocketController::RECOVERY)) {
                     emergency_counter++;
