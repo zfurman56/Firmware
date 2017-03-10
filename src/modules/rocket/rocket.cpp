@@ -13,6 +13,7 @@
 #include <math.h>
 #include <poll.h>
 #include <string.h>
+#include <queue>
 
 #include <px4_tasks.h>
 
@@ -286,6 +287,8 @@ int rocket_thread_main(void)
     RocketController controller = RocketController(236.22, 200);
     int emergency_counter = 0;
     float prev_alt = 0.0;
+    float base_alt = 0.0;
+    std::queue<float> altitudes_buffer;
     hrt_abstime prev_timestamp = hrt_absolute_time();
 
     /* subscribe to vehicle_local_position topic */
@@ -346,16 +349,26 @@ int rocket_thread_main(void)
                 /* copy sensors raw data into local buffer */
                 orb_copy(ORB_ID(vehicle_local_position), estimator_sub_fd, &raw);
 
-                rkt.input_altitude = -raw.z;
+                if (controller._state == RocketController::PRELAUNCH) {
+                    if (altitudes_buffer.size() > 8) {
+                        base_alt = altitudes_buffer.front();
+                        altitudes_buffer.pop();
+                    }
+                    altitudes_buffer.push(-raw.z);
+                }
+
+                float altitude = -raw.z-base_alt;
+
+                rkt.input_altitude = altitude;
                 rkt.input_velocity = -raw.vz;
                 float speed = sqrtf(powf(raw.vx, 2) + powf(raw.vy, 2) + powf(raw.vz, 2));
                 float estimated_cda = ((acceleration * MASS) / (powf(speed, 2) * AIR_DENSITY * 0.5f)) * 10000;
                 rkt.estimated_cda = ((estimated_cda > 1000) ? 1000 : estimated_cda); // Cap CdA measurements at 1000
-                rkt.apogee_estimate = controller.estimate_apogee(-raw.z, -raw.vz);
-                float brake_angle = controller.update_brake_angle(-raw.z, -raw.vz);
+                rkt.apogee_estimate = controller.estimate_apogee(altitude, -raw.vz);
+                float brake_angle = controller.update_brake_angle(altitude, -raw.vz);
                 rkt.target_drag_brake_angle = brake_angle * (180/PI);
                 rkt.error = controller._error;
-                rkt.flight_state = controller.update_state(-raw.z, -raw.vz);
+                rkt.flight_state = controller.update_state(altitude, -raw.vz);
                 rkt.emergency_counter = emergency_counter;
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
