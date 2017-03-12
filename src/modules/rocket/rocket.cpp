@@ -32,6 +32,8 @@ extern "C" __EXPORT int rocket_main(int argc, char *argv[]);
 int rocket_thread_main(void);
 constexpr float PI = (float)M_PI;
 
+bool suppress_ekf_gps = false;
+
 static float acceleration = 0.0;
 static float accel_vertical = 0.0;
 static constexpr float MASS = 0.625; // kilograms
@@ -196,6 +198,7 @@ public:
                 case EMERGENCY_RECOVERY:
                     break;
             }
+            suppress_ekf_gps = (_state == BOOST);
         }
         return _state;
     }
