@@ -250,7 +250,7 @@ private:
     static constexpr float KI = 0.0;
     static constexpr float KD = 0.0;
     static constexpr float GRAVITY = 9.80665; // m/s^2
-    static constexpr bool CDA_TESTING = true;
+    static constexpr bool CDA_TESTING = false;
     static constexpr bool DRAG_BRAKES_ENABLED = true;
     const int ANGLES[3] = {30, 60, 90}; // degrees, used for CdA testing
     const float COEFS[4] = {-0.008160, 0.01923, -0.0009078, 0.003426}; // used to calculate CdA from brake angle
