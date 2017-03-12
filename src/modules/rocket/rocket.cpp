@@ -74,7 +74,7 @@ public:
         _armed(false),
         _target_altitude(target_altitude),
         _deployment_altitude(deployment_altitude),
-        _trigger_deployment_velocity(10.0),
+        _trigger_deployment_velocity(20.0),
         _testing_angle(0.0),
         _current_angle(0.0),
         _cda_testing_angle(0.0),
@@ -287,7 +287,7 @@ private:
 int rocket_thread_main(void)
 {
 
-    RocketController controller = RocketController(236.22, 200);
+    RocketController controller = RocketController(236.22, 210);
     int emergency_counter = 0;
     float prev_alt = 0.0;
     float base_alt = 0.0;
@@ -389,7 +389,7 @@ int rocket_thread_main(void)
 
 
                 // emergency parachute deployment
-                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 20) && (controller._state != RocketController::RECOVERY)) {
+                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 30) && (controller._state != RocketController::RECOVERY)) {
                     emergency_counter++;
                 } else {
                     emergency_counter = 0;
