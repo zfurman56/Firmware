@@ -20,7 +20,7 @@
 #include <drivers/drv_hrt.h>
 
 #include <uORB/uORB.h>
-#include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/sensor_baro.h>
 #include <uORB/topics/rocket.h>
 #include <uORB/topics/actuator_controls.h>
@@ -33,6 +33,7 @@ int rocket_thread_main(void);
 constexpr float PI = (float)M_PI;
 
 static float acceleration = 0.0;
+static float accel_vertical = 0.0;
 static constexpr float MASS = 0.625; // kilograms
 static constexpr float AIR_DENSITY = 1.225; // kg / m^3
 
@@ -75,7 +76,6 @@ public:
         _testing_angle(0.0),
         _current_angle(0.0),
         _cda_testing_angle(0.0),
-        _prev_velocity(0.0),
         _pid(KP, KI, KD),
         _counter(0)
     {}
@@ -147,7 +147,7 @@ public:
                     }
                     break;
                 case BOOST:
-                    if ((_prev_velocity-velocity) > 0) {
+                    if (accel_vertical > 0) {
                         _counter++;
                     } else {
                         _counter = 0;
@@ -160,12 +160,14 @@ public:
                     }
                     break;
                 case ASCENT:
-                    if ((hrt_absolute_time() - _coast_time) < 700000) {
-                        _cda_testing_angle = (ANGLES[0]*(PI/180));
-                    } else if ((hrt_absolute_time() - _coast_time) < 1400000) {
-                        _cda_testing_angle = (ANGLES[1]*(PI/180));
-                    } else {
-                        _cda_testing_angle = (ANGLES[2]*(PI/180));
+                    if ((hrt_absolute_time() - _coast_time) > 1000000) {
+                        if ((hrt_absolute_time() - _coast_time) < 1700000) {
+                            _cda_testing_angle = (ANGLES[0]*(PI/180));
+                        } else if ((hrt_absolute_time() - _coast_time) < 2400000) {
+                            _cda_testing_angle = (ANGLES[1]*(PI/180));
+                        } else {
+                            _cda_testing_angle = (ANGLES[2]*(PI/180));
+                        }
                     }
 
                     if (velocity < 0) {
@@ -194,7 +196,6 @@ public:
                 case EMERGENCY_RECOVERY:
                     break;
             }
-            _prev_velocity = velocity;
         }
         return _state;
     }
@@ -249,7 +250,7 @@ private:
     static constexpr float KI = 0.0;
     static constexpr float KD = 0.0;
     static constexpr float GRAVITY = 9.80665; // m/s^2
-    static constexpr bool CDA_TESTING = false;
+    static constexpr bool CDA_TESTING = true;
     static constexpr bool DRAG_BRAKES_ENABLED = true;
     const int ANGLES[3] = {30, 60, 90}; // degrees, used for CdA testing
     const float COEFS[4] = {-0.008160, 0.01923, -0.0009078, 0.003426}; // used to calculate CdA from brake angle
@@ -260,7 +261,6 @@ private:
     float _testing_angle;
     float _current_angle;
     float _cda_testing_angle;
-    float _prev_velocity;
     Pid _pid;
     int _counter;
     hrt_abstime _coast_time;
@@ -291,13 +291,17 @@ int rocket_thread_main(void)
     std::queue<float> altitudes_buffer;
     hrt_abstime prev_timestamp = hrt_absolute_time();
 
-    /* subscribe to vehicle_local_position topic */
-    int estimator_sub_fd = orb_subscribe(ORB_ID(vehicle_local_position));
+    float altitude = 0.0;
+    float velocity = 0.0;
+    float speed = 0.0;
+
+    /* subscribe to topics */
+    int gps_sub_fd = orb_subscribe(ORB_ID(vehicle_gps_position));
     int baro_sub_fd = orb_subscribe(ORB_ID(sensor_baro)); // used for emergency parachute deployment
     int status_sub_fd = orb_subscribe(ORB_ID(vehicle_status));
     int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
     /* limit the update rate to 20 Hz */
-    orb_set_interval(estimator_sub_fd, 50);
+    orb_set_interval(gps_sub_fd, 50);
     orb_set_interval(baro_sub_fd, 50);
     orb_set_interval(status_sub_fd, 50);
     orb_set_interval(sensor_sub_fd, 50);
@@ -312,7 +316,7 @@ int rocket_thread_main(void)
 
     /* one could wait for multiple topics with this technique, just using one here */
     px4_pollfd_struct_t fds[4];
-    fds[0].fd = estimator_sub_fd;
+    fds[0].fd = gps_sub_fd;
     fds[0].events = POLLIN;
     fds[1].fd = baro_sub_fd;
     fds[1].events = POLLIN;
@@ -345,41 +349,44 @@ int rocket_thread_main(void)
 
             if (fds[0].revents & POLLIN) {
                 /* obtained data for the first file descriptor */
-                struct vehicle_local_position_s raw;
+                struct vehicle_gps_position_s raw;
                 /* copy sensors raw data into local buffer */
-                orb_copy(ORB_ID(vehicle_local_position), estimator_sub_fd, &raw);
+                orb_copy(ORB_ID(vehicle_gps_position), gps_sub_fd, &raw);
 
-                if (controller._state == RocketController::PRELAUNCH) {
-                    if (altitudes_buffer.size() > 8) {
-                        base_alt = altitudes_buffer.front();
-                        altitudes_buffer.pop();
-                    }
-                    altitudes_buffer.push(-raw.z);
-                }
-
-                float altitude = -raw.z-base_alt;
-
-                rkt.input_altitude = altitude;
-                rkt.input_velocity = -raw.vz;
-                float speed = sqrtf(powf(raw.vx, 2) + powf(raw.vy, 2) + powf(raw.vz, 2));
-                float estimated_cda = ((acceleration * MASS) / (powf(speed, 2) * AIR_DENSITY * 0.5f)) * 10000;
-                rkt.estimated_cda = ((estimated_cda > 1000) ? 1000 : estimated_cda); // Cap CdA measurements at 1000
-                rkt.apogee_estimate = controller.estimate_apogee(altitude, -raw.vz);
-                float brake_angle = controller.update_brake_angle(altitude, -raw.vz);
-                rkt.target_drag_brake_angle = brake_angle * (180/PI);
-                rkt.error = controller._error;
-                rkt.flight_state = controller.update_state(altitude, -raw.vz);
-                rkt.emergency_counter = emergency_counter;
-                rkt.timestamp = hrt_absolute_time();
-                orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
-
+                velocity = -raw.vel_d_m_s;
+                speed = sqrtf(powf(raw.vel_d_m_s, 2) + powf(raw.vel_e_m_s, 2) + powf(raw.vel_n_m_s, 2));
             }
 
             if (fds[1].revents & POLLIN) {
                 struct sensor_baro_s baro;
                 orb_copy(ORB_ID(sensor_baro), baro_sub_fd, &baro);
 
-                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 15) && (controller._state != RocketController::RECOVERY)) {
+                if (controller._state == RocketController::PRELAUNCH) {
+                    if (altitudes_buffer.size() > 8) {
+                        base_alt = altitudes_buffer.front();
+                        altitudes_buffer.pop();
+                    }
+                    altitudes_buffer.push(baro.altitude);
+                }
+
+                altitude = baro.altitude-base_alt;
+
+                rkt.input_altitude = altitude;
+                rkt.input_velocity = velocity;
+                float estimated_cda = ((acceleration * MASS) / (powf(speed, 2) * AIR_DENSITY * 0.5f)) * 10000;
+                rkt.estimated_cda = ((estimated_cda > 1000) ? 1000 : estimated_cda); // Cap CdA measurements at 1000
+                rkt.apogee_estimate = controller.estimate_apogee(altitude, velocity);
+                float brake_angle = controller.update_brake_angle(altitude, velocity);
+                rkt.target_drag_brake_angle = brake_angle * (180/PI);
+                rkt.error = controller._error;
+                rkt.flight_state = controller.update_state(altitude, velocity);
+                rkt.emergency_counter = emergency_counter;
+                rkt.timestamp = hrt_absolute_time();
+                orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
+
+
+                // emergency parachute deployment
+                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 20) && (controller._state != RocketController::RECOVERY)) {
                     emergency_counter++;
                 } else {
                     emergency_counter = 0;
@@ -411,6 +418,7 @@ int rocket_thread_main(void)
                 struct sensor_combined_s sensors;
                 orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &sensors);
                 acceleration = sqrtf(powf(sensors.accelerometer_m_s2[0], 2) + powf(sensors.accelerometer_m_s2[1], 2) + powf(sensors.accelerometer_m_s2[2], 2));
+                accel_vertical = sensors.accelerometer_m_s2[2];
             }
 
             controller.actuate(actuators_0_pub);
