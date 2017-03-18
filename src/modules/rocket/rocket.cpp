@@ -229,8 +229,10 @@ public:
                     actuators_out_0.control[0] = angle_to_command(_cda_testing_angle);
                     actuators_out_0.control[1] = angle_to_command(_cda_testing_angle);
                 } else {
-                    actuators_out_0.control[0] = angle_to_command(_current_angle);
-                    actuators_out_0.control[1] = angle_to_command(_current_angle);
+                    if ((hrt_absolute_time() - _coast_time) > 2000000) {
+                        actuators_out_0.control[0] = angle_to_command(_current_angle);
+                        actuators_out_0.control[1] = angle_to_command(_current_angle);
+                    }
                 }
             }
         }
