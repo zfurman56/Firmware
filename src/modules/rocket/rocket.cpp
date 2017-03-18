@@ -74,7 +74,7 @@ public:
         _armed(false),
         _target_altitude(target_altitude),
         _deployment_altitude(deployment_altitude),
-        _trigger_deployment_velocity(20.0),
+        _trigger_deployment_velocity(35.0),
         _testing_angle(0.0),
         _current_angle(0.0),
         _cda_testing_angle(0.0),
@@ -256,7 +256,7 @@ private:
     static constexpr bool CDA_TESTING = false;
     static constexpr bool DRAG_BRAKES_ENABLED = true;
     const int ANGLES[3] = {30, 60, 90}; // degrees, used for CdA testing
-    const float COEFS[4] = {-0.008160, 0.01923, -0.0009078, 0.003426}; // used to calculate CdA from brake angle
+    const float COEFS[4] = {-0.00318461, 0.0100433, 0.00851401, 0.00318692}; // used to calculate CdA from brake angle
 
     float _target_altitude;
     float _deployment_altitude;
@@ -287,7 +287,7 @@ private:
 int rocket_thread_main(void)
 {
 
-    RocketController controller = RocketController(236.22, 210);
+    RocketController controller = RocketController(236.22, 200);
     int emergency_counter = 0;
     float prev_alt = 0.0;
     float base_alt = 0.0;
@@ -389,7 +389,7 @@ int rocket_thread_main(void)
 
 
                 // emergency parachute deployment
-                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 30) && (controller._state != RocketController::RECOVERY)) {
+                if ((((prev_alt - baro.altitude) / ((baro.timestamp - prev_timestamp) / 1000000.0f)) > 45) && (controller._state != RocketController::RECOVERY)) {
                     emergency_counter++;
                 } else {
                     emergency_counter = 0;
