@@ -367,7 +367,7 @@ int rocket_thread_main(void)
                 orb_copy(ORB_ID(sensor_baro), baro_sub_fd, &baro);
 
                 if (controller._state == RocketController::PRELAUNCH) {
-                    if (altitudes_buffer.size() > 8) {
+                    if (altitudes_buffer.size() > 25) {
                         base_alt = altitudes_buffer.front();
                         altitudes_buffer.pop();
                     }
