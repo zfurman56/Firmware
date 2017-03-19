@@ -289,7 +289,7 @@ private:
 int rocket_thread_main(void)
 {
 
-    RocketController controller = RocketController(236.22, 185);
+    RocketController controller = RocketController(236.22, 195);
     int emergency_counter = 0;
     float prev_alt = 0.0;
     float base_alt = 0.0;
