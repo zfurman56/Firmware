@@ -229,7 +229,7 @@ public:
                     actuators_out_0.control[0] = angle_to_command(_cda_testing_angle);
                     actuators_out_0.control[1] = angle_to_command(_cda_testing_angle);
                 } else {
-                    if ((hrt_absolute_time() - _coast_time) > 2000000) {
+                    if ((hrt_absolute_time() - _coast_time) > 2500000) {
                         actuators_out_0.control[0] = angle_to_command(_current_angle);
                         actuators_out_0.control[1] = angle_to_command(_current_angle);
                     }
@@ -289,7 +289,7 @@ private:
 int rocket_thread_main(void)
 {
 
-    RocketController controller = RocketController(236.22, 200);
+    RocketController controller = RocketController(242.22, 205);
     int emergency_counter = 0;
     float prev_alt = 0.0;
     float base_alt = 0.0;
