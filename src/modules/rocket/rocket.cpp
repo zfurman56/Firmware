@@ -300,6 +300,11 @@ int rocket_thread_main(void)
     float velocity = 0.0;
     float speed = 0.0;
 
+    float raw_velocity = 0.0;
+    hrt_abstime raw_velocity_timestamp = hrt_absolute_time();
+    float prev_velocity = 0.0;
+    hrt_abstime prev_velocity_timestamp = hrt_absolute_time();
+
     /* subscribe to topics */
     int gps_sub_fd = orb_subscribe(ORB_ID(vehicle_gps_position));
     int baro_sub_fd = orb_subscribe(ORB_ID(sensor_baro)); // used for emergency parachute deployment
@@ -358,7 +363,10 @@ int rocket_thread_main(void)
                 /* copy sensors raw data into local buffer */
                 orb_copy(ORB_ID(vehicle_gps_position), gps_sub_fd, &raw);
 
-                velocity = -raw.vel_d_m_s;
+                prev_velocity = raw_velocity;
+                prev_velocity_timestamp = raw_velocity_timestamp;
+                raw_velocity = -raw.vel_d_m_s;
+                raw_velocity_timestamp = raw.timestamp;
                 speed = sqrtf(powf(raw.vel_d_m_s, 2) + powf(raw.vel_e_m_s, 2) + powf(raw.vel_n_m_s, 2));
             }
 
@@ -375,6 +383,7 @@ int rocket_thread_main(void)
                 }
 
                 altitude = baro.altitude-base_alt;
+                velocity = ((raw_velocity-prev_velocity)/(raw_velocity_timestamp-prev_velocity_timestamp))*(baro.timestamp-raw_velocity_timestamp) + raw_velocity;
 
                 rkt.input_altitude = altitude;
                 rkt.input_velocity = velocity;
