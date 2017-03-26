@@ -393,7 +393,7 @@ int rocket_thread_main(void)
                 float brake_angle = controller.update_brake_angle(altitude, velocity);
                 rkt.target_drag_brake_angle = brake_angle * (180/PI);
                 rkt.error = controller._error;
-                rkt.flight_state = controller.update_state(altitude, velocity);
+                rkt.flight_state = controller.update_state(altitude, raw_velocity);
                 rkt.emergency_counter = emergency_counter;
                 rkt.timestamp = hrt_absolute_time();
                 orb_publish(ORB_ID(rocket), rkt_pub, &rkt);
