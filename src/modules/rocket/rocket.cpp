@@ -383,7 +383,7 @@ int rocket_thread_main(void)
                 }
 
                 altitude = baro.altitude-base_alt;
-                velocity = ((raw_velocity-prev_velocity)/(raw_velocity_timestamp-prev_velocity_timestamp))*(baro.timestamp-raw_velocity_timestamp) + raw_velocity;
+                velocity = ((raw_velocity-prev_velocity)/(raw_velocity_timestamp-prev_velocity_timestamp))*(hrt_absolute_time()-raw_velocity_timestamp) + raw_velocity;
 
                 rkt.input_altitude = altitude;
                 rkt.input_velocity = velocity;
