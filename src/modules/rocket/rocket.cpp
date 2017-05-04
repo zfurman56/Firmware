@@ -72,6 +72,7 @@ public:
     RocketController(float target_altitude, float deployment_altitude):
         _state(TESTING),
         _armed(false),
+        _testing(true),
         _target_altitude(target_altitude),
         _deployment_altitude(deployment_altitude),
         _trigger_deployment_velocity(35.0),
@@ -123,16 +124,23 @@ public:
             switch(_state) {
                 case TESTING:
                     if (_armed) {
-                        _testing_angle += 0.05f;
-                        if (_testing_angle > (PI/2)) {
-                            _testing_angle = 0.0;
-                        }
-                        if (time_since_armed() > 5000000) {
-                            _testing_angle = 0.0;
-                        }
-                        // give time for drag brakes to get back to zero degrees
-                        if (time_since_armed() > 5500000) {
-                            _state = PRELAUNCH;
+                        if (_testing) {
+                            _testing_angle += 0.05f;
+                            if (_testing_angle > (PI/2)) {
+                                _testing_angle = 0.0;
+                            }
+                            if (time_since_test() > 5000000) {
+                                _testing_angle = 0.0;
+                            }
+                            // give time for drag brakes to get back to zero degrees
+                            if (time_since_test() > 5500000) {
+                                _testing = false;
+                            }
+                        } else {
+                            if (time_since_test() > 30000000) {
+                                _testing = true;
+                                _test_time = hrt_absolute_time();
+                            }
                         }
                     }
                     break;
@@ -247,7 +255,8 @@ public:
     FlightState _state;
     float _error;
     bool _armed;
-    hrt_abstime _armed_time;
+    bool _testing;
+    hrt_abstime _test_time;
 
 
 private:
@@ -274,8 +283,8 @@ private:
         return (COEFS[3] + (COEFS[2]*angle) + (COEFS[1]*powf(angle, 2)) + (COEFS[0]*powf(angle, 3)));
     }
 
-    hrt_abstime time_since_armed() {
-        return (hrt_absolute_time() - _armed_time);
+    hrt_abstime time_since_test() {
+        return (hrt_absolute_time() - _test_time);
     }
 
     // Takes angle in radians and converts to servo command (-1 to 1)
@@ -419,7 +428,7 @@ int rocket_thread_main(void)
                 struct vehicle_status_s status;
                 orb_copy(ORB_ID(vehicle_status), status_sub_fd, &status);
                 if (!controller._armed) {
-                    controller._armed_time = hrt_absolute_time();
+                    controller._test_time = hrt_absolute_time();
                 }
                 if (status.arming_state == 2) {
                     controller._armed = true;
