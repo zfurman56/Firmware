@@ -1,0 +1,12 @@
+#!nsh
+#
+# @name Rocket config
+#
+# @type Rocket x
+#
+# @maintainer Zach Furman
+#
+
+sh /etc/init.d/rc.mc_defaults
+
+set MIXER IO_pass

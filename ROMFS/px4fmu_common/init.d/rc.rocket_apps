@@ -1,8 +1,7 @@
 #!nsh
 #
-# Standard apps for vtol:
+# Standard apps for multirotors:
 # att & pos estimator, att & pos control.
-#
 #
 
 
@@ -37,15 +36,9 @@ then
 fi
 #---------------------------------------
 
-
-vtol_att_control start
-mc_att_control start
-mc_pos_control start
-fw_att_control start
-fw_pos_control_l1 start
+rocket start
 
 #
 # Start Land Detector
-# Multicopter for now until we have something for VTOL
 #
-land_detector start vtol
+land_detector start multicopter

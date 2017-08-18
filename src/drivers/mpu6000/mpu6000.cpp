@@ -753,7 +753,7 @@ int MPU6000::reset()
 	_gyro_range_scale = (0.0174532 / 16.4);//1.0f / (32768.0f * (2000.0f / 180.0f) * M_PI_F);
 	_gyro_range_rad_s = (2000.0f / 180.0f) * M_PI_F;
 
-	set_accel_range(8);
+	set_accel_range(16);
 
 	usleep(1000);
 
@@ -1696,8 +1696,13 @@ MPU6000::stop()
 	memset(_last_accel, 0, sizeof(_last_accel));
 
 	/* discard unread data in the buffers */
-	_accel_reports->flush();
-	_gyro_reports->flush();
+	if (_accel_reports != nullptr) {
+		_accel_reports->flush();
+	}
+
+	if (_gyro_reports != nullptr) {
+		_gyro_reports->flush();
+	}
 }
 
 #if defined(USE_I2C)
@@ -2555,7 +2560,7 @@ mpu6000_main(int argc, char *argv[])
 	int ch;
 	bool external = false;
 	enum Rotation rotation = ROTATION_NONE;
-	int accel_range = 8;
+	int accel_range = 16;
 
 	/* jump over start/off/etc and look at options first */
 	while ((ch = getopt(argc, argv, "T:XISsR:a:")) != EOF) {

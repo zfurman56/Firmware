@@ -22,7 +22,7 @@ param set SENS_BOARD_ROT 0
 param set SENS_BOARD_X_OFF 0.000001
 param set COM_RC_IN_MODE 1
 param set NAV_DLL_ACT 2
-param set COM_DISARM_LAND 3
+param set COM_DISARM_LAND 0
 param set NAV_ACC_RAD 2.0
 param set COM_OF_LOSS_T 5
 param set COM_OBL_ACT 2
@@ -58,9 +58,8 @@ land_detector start multicopter
 navigator start
 attitude_estimator_q start
 local_position_estimator start
-mc_pos_control start
-mc_att_control start
-mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/quad_w.main.mix
+mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/IO_pass.main.mix
+rocket start
 mavlink start -u 14556 -r 4000000
 mavlink start -u 14557 -r 4000000 -m onboard -o 14540
 mavlink stream -r 50 -s POSITION_TARGET_LOCAL_NED -u 14556

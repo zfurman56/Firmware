@@ -559,6 +559,8 @@ void Logger::add_default_topics()
 	add_topic("sensor_combined");
 	add_topic("vehicle_gps_position");
 	add_topic("vehicle_land_detected");
+
+	add_topic("rocket");
 }
 
 int Logger::add_topics_from_file(const char *fname)

@@ -479,6 +479,9 @@ void Ekf2::task_main()
 
 		orb_check(gps_sub, &gps_updated);
 
+		extern bool suppress_ekf_gps;
+		gps_updated = (gps_updated && !suppress_ekf_gps);
+
 		if (gps_updated) {
 			orb_copy(ORB_ID(vehicle_gps_position), gps_sub, &gps);
 		}

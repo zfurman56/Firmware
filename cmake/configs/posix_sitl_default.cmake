@@ -49,6 +49,7 @@ set(config_module_list
 	modules/position_estimator_inav
 	modules/local_position_estimator
 	modules/replay
+	modules/rocket
 	modules/sdlog2
 	modules/sensors
 	modules/simulator

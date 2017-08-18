@@ -1,0 +1,14 @@
+#!nsh
+#
+# @name HIL Rocket X
+#
+# @type Simulation
+#
+# @maintainer Zach Furman
+#
+
+sh /etc/init.d/rc.mc_defaults
+
+set MIXER IO_pass
+
+set HIL yes
