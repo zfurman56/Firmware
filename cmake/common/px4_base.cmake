@@ -649,7 +649,7 @@ function(px4_add_common_flags)
 
 	set(warnings
 		-Wall
-		-Werror
+		#-Werror
 		-Wextra
 		-Wno-sign-compare
 		-Wshadow
@@ -662,7 +662,7 @@ function(px4_add_common_flags)
 		-Wfatal-errors
 		-Werror=unused-variable
 		-Werror=reorder
-		-Werror=uninitialized
+		#-Werror=uninitialized
 		-Werror=init-self
 		#-Wcast-qual  - generates spurious noreturn attribute warnings,
 		#               try again later

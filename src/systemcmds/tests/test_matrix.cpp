@@ -621,7 +621,10 @@ bool MatrixTest::vector2Tests(void)
 	ut_test(fabs(c(0) - 0) < 1e-5);
 	ut_test(fabs(c(1) - 0) < 1e-5);
 
-	Matrix<float, 2, 1> d(a);
+	static Matrix<float, 2, 1> d(a);
+	// the static keywork is a workaround for an internal bug of GCC
+	// "internal compiler error: in trunc_int_for_mode, at explow.c:55"
+	// see https://github.com/PX4/Firmware/commit/fc860140f123b9a6f0a868f91ac5793c50f43172
 	ut_test(fabs(d(0, 0) - 1) < 1e-5);
 	ut_test(fabs(d(1, 0) - 0) < 1e-5);
 
