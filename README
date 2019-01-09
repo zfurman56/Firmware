@@ -1,0 +1,18 @@
+To build Firmware:
+1) follow the instuctions for downloadding the jmavsim preqs: https://github.com/PX4/Devguide/blob/e285ddbf4eb475a70325bd97f04d520cc773bde1/starting-installing.md
+  - The george edison PPA no longer exists; insteal install manually:
+    - Makefile:53: wget https://cmake.org/files/v3.4/cmake-3.4.3-Linux-x86_64.sh
+    - Makefile:54: chmod +x cmake-3.4.3-Linux-x86_64.sh
+    - Makefile:55: sudo mkdir /opt/cmake-3.4.3
+    - Makefile:56: sudo ./cmake-3.4.3-Linux-x86_64.sh --prefix=/opt/cmake-3.4.3 --exclude-subdir
+    - Makefile:57: export PATH=/opt/cmake-3.4.3/bin:$PATH
+  - We are using NuttX based hardware and jMAVSim, so follow those instructions as well.
+
+
+To run sitl:
+2) Follow the guide: https://github.com/PX4/Devguide/blob/e285ddbf4eb475a70325bd97f04d520cc773bde1/simulation-sitl.md
+
+
+The program should be able to run GCC 7.3.0 when using sitl
+
+Devguide url/commit: https://github.com/PX4/Devguide/tree/e285ddbf4eb475a70325bd97f04d520cc773bde1
