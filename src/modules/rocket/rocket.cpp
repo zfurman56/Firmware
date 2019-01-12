@@ -143,6 +143,7 @@ public:
                         _counter = 0;
                     }
 
+                    // The velocity has been greater than 5m/s for 3 ticks
                     if (_counter > 3) {
                         _state = BOOST;
                         _counter = 0;
@@ -154,7 +155,8 @@ public:
                     } else {
                         _counter = 0;
                     }
-
+                    // 3 positive accelerations have been captured,
+                    // rocket is starting to ascend
                     if (_counter > 3) {
                         _state = ASCENT;
                         _coast_time = hrt_absolute_time();
@@ -162,6 +164,9 @@ public:
                     }
                     break;
                 case ASCENT:
+                    // Motor is burning, rocket is ascending
+
+                    // After motor burnout, start CdA angle testing
                     if ((hrt_absolute_time() - _coast_time) > 1000000) {
                         if ((hrt_absolute_time() - _coast_time) < 1700000) {
                             _cda_testing_angle = (ANGLES[0]*(PI/180));
@@ -178,6 +183,8 @@ public:
                         _counter = 0;
                     }
 
+                    // Velocity has been negative for 3 ticks,
+                    // switch state to descent.
                     if (_counter > 3) {
                         _state = DESCENT;
                         _counter = 0;
@@ -188,6 +195,8 @@ public:
                         _counter++;
                     }
 
+                    // Chute deployment altitude or velocity is at required
+                    // values to deploy chute
                     if (_counter > 4) {
                         _state = RECOVERY;
                         _counter = 0;
@@ -207,28 +216,41 @@ public:
         struct actuator_controls_s actuators_out_0;
 
         actuators_out_0.timestamp = hrt_absolute_time();
+        // Initial angles
+        /*
+            control[0] - drag brake servo0
+            control[1] - drag brake servo1
+            control[2] - pin servo
+            control[3] - power rail
+            control[4] - 5V battery
+        */
         actuators_out_0.control[0] = angle_to_command(0.0f);
         actuators_out_0.control[1] = angle_to_command(0.0f);
         actuators_out_0.control[2] = 1.0;
 
+        // Test the actuators
         if(_state == TESTING) {
             actuators_out_0.control[0] = angle_to_command(_testing_angle);
             actuators_out_0.control[1] = angle_to_command(_testing_angle);
             actuators_out_0.control[2] = angle_to_command(_testing_angle);
         }
 
+        // Power rail cuts electricity to drag servos during prelaunch
+        // and recover to preserve energy.
         if ((_state == PRELAUNCH) || (_state == RECOVERY)) {
             actuators_out_0.control[3] = -1.0;
         } else {
             actuators_out_0.control[3] = 1.0;
         }
 
+        // Accuate on ascent (if drag brakes are enabled)
         if (_state == ASCENT) {
             if (DRAG_BRAKES_ENABLED) {
                 if (CDA_TESTING) {
                     actuators_out_0.control[0] = angle_to_command(_cda_testing_angle);
                     actuators_out_0.control[1] = angle_to_command(_cda_testing_angle);
                 } else {
+                    // Wait until the motor has burned out to start actuating brakes
                     if ((hrt_absolute_time() - _coast_time) > 2250000) {
                         actuators_out_0.control[0] = angle_to_command(_current_angle);
                         actuators_out_0.control[1] = angle_to_command(_current_angle);
@@ -237,6 +259,7 @@ public:
             }
         }
 
+        // Retract the pin if the rocket is in recovery
         if ((_state == RECOVERY) || (_state == EMERGENCY_RECOVERY)) {
             actuators_out_0.control[2] = -1.0;
         }
@@ -288,7 +311,7 @@ private:
 
 int rocket_thread_main(void)
 {
-
+    // create RocketController
     RocketController controller = RocketController(236.22, 205);
     int emergency_counter = 0;
     float prev_alt = 0.0;
