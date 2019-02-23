@@ -127,11 +127,11 @@ public:
                         if (_testing_angle > (PI/2)) {
                             _testing_angle = 0.0;
                         }
-                        if (time_since_armed() > 5000000) {
+                        if (time_since_armed() > TESTING_TIME) {
                             _testing_angle = 0.0;
                         }
                         // give time for drag brakes to get back to zero degrees
-                        if (time_since_armed() > 5500000) {
+                        if (time_since_armed() > TESTING_TIME + 500000) {
                             _state = PRELAUNCH;
                         }
                     }
@@ -225,18 +225,18 @@ public:
             control[4] - 5V battery
         */
         actuators_out_0.control[0] = angle_to_command(0.0f);
+
+        // Here for sanity from TARC 2018
         actuators_out_0.control[1] = angle_to_command(0.0f);
         actuators_out_0.control[2] = 1.0;
 
         // Test the actuators
         if(_state == TESTING) {
             actuators_out_0.control[0] = angle_to_command(_testing_angle);
-            actuators_out_0.control[1] = angle_to_command(_testing_angle);
-            actuators_out_0.control[2] = angle_to_command(_testing_angle);
         }
 
         // Power rail cuts electricity to drag servos during prelaunch
-        // and recover to preserve energy.
+        // and recover to preserve energy
         if ((_state == PRELAUNCH) || (_state == RECOVERY)) {
             actuators_out_0.control[3] = -1.0;
         } else {
@@ -248,12 +248,10 @@ public:
             if (DRAG_BRAKES_ENABLED) {
                 if (CDA_TESTING) {
                     actuators_out_0.control[0] = angle_to_command(_cda_testing_angle);
-                    actuators_out_0.control[1] = angle_to_command(_cda_testing_angle);
                 } else {
                     // Wait until the motor has burned out to start actuating brakes
                     if ((hrt_absolute_time() - _coast_time) > 2250000) {
                         actuators_out_0.control[0] = angle_to_command(_current_angle);
-                        actuators_out_0.control[1] = angle_to_command(_current_angle);
                     }
                 }
             }
@@ -261,7 +259,8 @@ public:
 
         // Retract the pin if the rocket is in recovery
         if ((_state == RECOVERY) || (_state == EMERGENCY_RECOVERY)) {
-            actuators_out_0.control[2] = -1.0;
+            // TARC 2019 doesn't have a pin. We ran out of time.
+            //actuators_out_0.control[2] = -1.0;
         }
 
         orb_publish(ORB_ID(actuator_controls_0), actuators_0_pub, &actuators_out_0);
@@ -282,6 +281,8 @@ private:
     static constexpr bool DRAG_BRAKES_ENABLED = true;
     const int ANGLES[3] = {30, 60, 90}; // degrees, used for CdA testing
     const float COEFS[4] = {-0.00318461, 0.0100433, 0.00851401, 0.00318692}; // used to calculate CdA from brake angle
+
+    static constexpr int TESTING_TIME = 5000000; // milliseconds
 
     float _target_altitude;
     float _deployment_altitude;
@@ -312,7 +313,7 @@ private:
 int rocket_thread_main(void)
 {
     // create RocketController
-    RocketController controller = RocketController(236.22, 205);
+    RocketController controller = RocketController(260.91, 205);
     int emergency_counter = 0;
     float prev_alt = 0.0;
     float base_alt = 0.0;
